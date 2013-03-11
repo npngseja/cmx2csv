@@ -20,12 +20,14 @@
  *	13. Expression marks - wedge(cresc, dim.) OK
  *	14. Expression marks - tempo(ritardando, accel.) OK 
  *	15. Articulation - staccato, legato, fermata OK
- *	16. Attack Time OK
- *	17. Release Time OK
- *	18. Tempo OK
- *	19. Tempo Deviation OK
- *	20. Dynamics OK
- *	21. Grouping (reserved)
+ *      16. Arpeggio
+ *      17. Ornaments
+ *	18. Attack Time OK
+ *	19. Release Time OK
+ *	20. Tempo OK
+ *	21. Tempo Deviation OK
+ *	22. Dynamics OK
+ *	23. Grouping (reserved)
  *
  * Taehun Kim
  * Audio Communcation Group, TU Berlin
@@ -87,7 +89,7 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 	}
 	writer.write("$avg_tempo: " + avg_tempo);
 	writer.newLine();
-	writer.write("$legend: Staff,Voice,Key,Clef,Measure,BeatPos,Metric,Notenum,NoteName,Duration,TimeSig,Slur,DynMark,Wedge,TempoMark,Articulation,*Attack(0),*Release(1),*Tempo(2),*RelTempo(3),*Velocity(4),*GrpStr_Manual(5)");
+	writer.write("$legend: Staff,Voice,Key,Clef,Measure,BeatPos,Metric,Notenum,NoteName,Duration,TimeSig,Slur,DynMark,Wedge,TempoMark,Articulation,Arpeggio,Ornaments,*Attack(0),*Release(1),*Tempo(2),*RelTempo(3),*Velocity(4),*GrpStr_Manual(5)");
 	writer.newLine();
 	writer.flush();
 		
@@ -108,8 +110,8 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 
 	for (int i = 0; i < buffer.length; i++) {
 	    System.out.println(buffer[i]);
-	    //writer.write(buffer[i]);
-	    //writer.newLine();
+	    writer.write(buffer[i]);
+	    writer.newLine();
 	}
 	
 	// close file writer
@@ -286,6 +288,8 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 						String articulation ="NA";
 						Double tempo_dev = 1.0;
 						String metric = "NA";
+						String arpeggiate = "NA";
+						String ornaments = "NA";
 						String noteName = "NA";
 						String [] splitLine = timeSig.split("/");
 						int beat = Integer.parseInt(splitLine[0]);
@@ -388,7 +392,7 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 						if (!note.rest()) {
 							noteNumber = Integer.toString(note.notenum());
 							noteName = note.noteName();
-							if (note.grace()) { noteNumber = "(grace)"+noteNumber; }	// if it is a grace note
+							
 							//if there exists note deviation info
 							if (nd != null && nd instanceof DeviationInstanceWrapper.NoteDeviation)  {
 							    //calculate relative attack, release respect to actualDuration
@@ -408,56 +412,129 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 							release = "NA";
 							dynamic = "NA";
 						}
+
+						MusicXMLWrapper.Notations nt = note.getFirstNotations();
+						org.w3c.dom.NodeList childNodes = nt.getTheChildNodes();
+							
+						for (int index = 0; index < childNodes.getLength(); index++) {
+						    String nodeName = childNodes.item(index).getNodeName();
+						    
+						    if (nodeName.equals("arpeggiate")) {
+							arpeggiate = nodeName;
+						    } 
+						    if (nodeName.equals("ornaments")) {
+							String nodeName2 = childNodes.item(index).getFirstChild().getNodeName();
+									
+									
+							if (nodeName2.equals("trill-mark")) {
+							    ornaments = "trill_2_X";
+							} 
+							if (nodeName2.equals("turn")) {
+							    ornaments = "turn_2_-1";	// +2, 0, -2, 0
+							} 
+							if (nodeName2.equals("inverted-turn")) {
+							    ornaments = "turn_-1_2";
+							} 
+							if (nodeName2.equals("mordent")) {
+							    ornaments = "mordent_2_X";
+							} 
+							if (nodeName2.equals("inverted-mordent")) {
+							    ornaments = "mordent_-2_X";
+							}
+							
+						    }
+								
+						    if (nodeName.equals("slur")) {
+							slur = nt.getSlurList().get(0).type();
+						    }
+								
+						}
+							
+							
+					
+						
+						if (!note.rest()) {
+						    noteNumber = Integer.toString(note.notenum());
+						    if (note.grace()) { 
+							childNodes = note.getTheChildNodes();
+							for (int index = 0; index < childNodes.getLength(); index++) {
+							    String nodeName = childNodes.item(index).getNodeName();
+							    
+							    if (nodeName.equals("grace")) {
+								
+								org.w3c.dom.NamedNodeMap attrs = childNodes.item(index).getAttributes();
+								if (childNodes.item(index).hasAttributes() == false) {
+								    noteNumber = "grace_app_"+noteNumber;
+								} else {
+								    noteNumber = "grace_acc_"+noteNumber;
+								    
+								}
+							    } 
+							}
+							
+							
+							if (note.type().equals("32th")) durationActual = "0.125";
+							else if (note.type().equals("16th")) durationActual = "0.25";
+							else if (note.type().equals("eighth")) durationActual = "0.5";
+							else if (note.type().equals("quarter")) durationActual = "1.0";
+							else if (note.type().equals("half")) durationActual = "2.0";
+							else if (note.type().equals("whole")) durationActual = "4.0";
+							else if (note.type().equals("64th")) durationActual = "0.0625";
+							
+						    }
+						}
 						
 						String write_exDyn; // for sf-handling
 						// if duration == 0.0 then the note is a decorative note.
 						// if tie == "stop" then we skip the note, because tie is already processed
 						if (!durationActual.equals("0.0") || !tie.equals("stop")) {
-						// sf-handling
-						if (!exDyn_sf.equals("NA")) { 
+						    // sf-handling
+						    if (!exDyn_sf.equals("NA")) { 
 							write_exDyn = exDyn_sf; exDyn_sf = "NA";
-							} else { 
-								write_exDyn = exDyn;
-							}
-						List<Object> aList = new ArrayList<Object>();
-						aList.add(note_count);		// only for sorting later
-						aList.add(staff);		// 0
-						aList.add(voice);               // 1
-						aList.add(key);                 // 2
-						aList.add(clef_sign);           // 3
-						aList.add(measureNumber); 	// 4
-						aList.add(beatPos);		// 5
-						aList.add(metric);		// 6
-						aList.add(noteNumber);		// 7
-						aList.add(noteName);            // 8
-						aList.add(durationActual);	// 9
-						aList.add(timeSig);		// 10
-						aList.add(slur);		// 11
-						aList.add(write_exDyn);		// 12
-						aList.add(exWedge);		// 13
-						aList.add(exTmp);		// 14
-						aList.add(articulation);	// 15
-						aList.add(attack);		// 16
-						aList.add(release);		// 17
-						aList.add(tempo);		// 18
-						aList.add(tempoDeviation);	// 19
-						aList.add(dynamic);		// 20
-						String grouping = "NA";
-						aList.add(grouping);	        // 21
-
-						placeholder.put(xpath, aList);
-						note_count++;
-
+						    } else { 
+							write_exDyn = exDyn;
+						    }
+						    List<Object> aList = new ArrayList<Object>();
+						    aList.add(note_count);		// only for sorting later
+						    aList.add(staff);		// 0
+						    aList.add(voice);               // 1
+						    aList.add(key);                 // 2
+						    aList.add(clef_sign);           // 3
+						    aList.add(measureNumber); 	// 4
+						    aList.add(beatPos);		// 5
+						    aList.add(metric);		// 6
+						    aList.add(noteNumber);		// 7
+						    aList.add(noteName);            // 8
+						    aList.add(durationActual);	// 9
+						    aList.add(timeSig);		// 10
+						    aList.add(slur);		// 11
+						    aList.add(write_exDyn);		// 12
+						    aList.add(exWedge);		// 13
+						    aList.add(exTmp);		// 14
+						    aList.add(articulation);	// 15
+						    aList.add(arpeggiate);      // 16
+						    aList.add(ornaments);       // 17
+						    aList.add(attack);		// 18
+						    aList.add(release);		// 19
+						    aList.add(tempo);		// 20
+						    aList.add(tempoDeviation);	// 21
+						    aList.add(dynamic);		// 22
+						    String grouping = "NA";
+						    aList.add(grouping);	        // 23
+						    
+						    placeholder.put(xpath, aList);
+						    note_count++;
+						    
 						}
 					}
 				}
 			}
 		}
-	}
+    }
 
 	private void groupingToPlaceholder() {
-		DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
-		DocumentBuilder builder = null;
+	    DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
+	    DocumentBuilder builder = null;
 
 		try {
 			builder = builderFactory.newDocumentBuilder();
