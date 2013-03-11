@@ -414,7 +414,7 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 						}
 
 						MusicXMLWrapper.Notations nt = note.getFirstNotations();
-						org.w3c.dom.NodeList childNodes = nt.getTheChildNodes();
+						org.w3c.dom.NodeList childNodes = note.getTheChildNodes();
 							
 						for (int index = 0; index < childNodes.getLength(); index++) {
 						    String nodeName = childNodes.item(index).getNodeName();
