@@ -414,41 +414,44 @@ public class ScoreDeviationGroupingToCSV extends CMXCommand {
 						}
 
 						MusicXMLWrapper.Notations nt = note.getFirstNotations();
-						org.w3c.dom.NodeList childNodes = note.getTheChildNodes();
+						org.w3c.dom.NodeList childNodes = null; 
+						if (nt != null && nt instanceof MusicXMLWrapper.Notations) childNodes = nt.getTheChildNodes();
+						if (childNodes != null) {
+						    for (int index = 0; index < childNodes.getLength(); index++) {
+							String nodeName = childNodes.item(index).getNodeName();
 							
-						for (int index = 0; index < childNodes.getLength(); index++) {
-						    String nodeName = childNodes.item(index).getNodeName();
-						    
-						    if (nodeName.equals("arpeggiate")) {
-							arpeggiate = nodeName;
-						    } 
-						    if (nodeName.equals("ornaments")) {
-							String nodeName2 = childNodes.item(index).getFirstChild().getNodeName();
-									
-									
-							if (nodeName2.equals("trill-mark")) {
-							    ornaments = "trill_2_X";
+							if (nodeName.equals("arpeggiate")) {
+							    arpeggiate = nodeName;
 							} 
-							if (nodeName2.equals("turn")) {
-							    ornaments = "turn_2_-1";	// +2, 0, -2, 0
-							} 
-							if (nodeName2.equals("inverted-turn")) {
-							    ornaments = "turn_-1_2";
-							} 
-							if (nodeName2.equals("mordent")) {
-							    ornaments = "mordent_2_X";
-							} 
-							if (nodeName2.equals("inverted-mordent")) {
-							    ornaments = "mordent_-2_X";
+							if (nodeName.equals("ornaments")) {
+							    String nodeName2 = childNodes.item(index).getFirstChild().getNodeName();
+							    
+							    
+							    if (nodeName2.equals("trill-mark")) {
+								ornaments = "trill_2_X";
+							    } 
+							    if (nodeName2.equals("turn")) {
+								ornaments = "turn_2_-1";	// +2, 0, -2, 0
+							    } 
+							    if (nodeName2.equals("inverted-turn")) {
+								ornaments = "turn_-1_2";
+							    } 
+							    if (nodeName2.equals("mordent")) {
+								ornaments = "mordent_2_X";
+							    } 
+							    if (nodeName2.equals("inverted-mordent")) {
+								ornaments = "mordent_-2_X";
+							    }
+							
 							}
 							
-						    }
-								
-						    if (nodeName.equals("slur")) {
-							slur = nt.getSlurList().get(0).type();
+							if (nodeName.equals("slur")) {
+							    slur = nt.getSlurList().get(0).type();
+							}
 						    }
 								
 						}
+						
 							
 							
 					
